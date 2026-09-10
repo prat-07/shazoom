@@ -1,0 +1,70 @@
+# =========================
+# Maven / Java
+# =========================
+
+backend/target/
+
+# Keep Maven wrapper JAR if you add one
+!backend/.mvn/wrapper/maven-wrapper.jar
+
+# Kotlin
+backend/.kotlin/
+
+# Build directories
+backend/build/
+
+
+# =========================
+# IntelliJ IDEA
+# =========================
+
+backend/.idea/
+backend/*.iml
+backend/*.ipr
+backend/*.iws
+
+
+# =========================
+# Eclipse
+# =========================
+
+backend/.apt_generated/
+backend/.classpath
+backend/.factorypath
+backend/.project
+backend/.settings/
+backend/.springBeans
+backend/.sts4-cache
+
+
+# =========================
+# NetBeans
+# =========================
+
+backend/nbproject/private/
+backend/nbbuild/
+backend/dist/
+backend/nbdist/
+backend/.nb-gradle/
+
+
+# =========================
+# VS Code
+# =========================
+
+.vscode/
+
+
+# =========================
+# macOS
+# =========================
+
+.DS_Store
+
+
+# =========================
+# Generated audio/visualization files
+# =========================
+
+backend/src/main/assets/audio.csv
+backend/src/main/assets/visuals/*.png
