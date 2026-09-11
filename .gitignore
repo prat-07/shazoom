@@ -66,5 +66,5 @@ backend/.nb-gradle/
 # Generated audio/visualization files
 # =========================
 
-backend/src/main/assets/audio.csv
+backend/src/main/assets/*.csv
 backend/src/main/assets/visuals/*.png
