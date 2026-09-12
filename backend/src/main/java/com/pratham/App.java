@@ -2,7 +2,7 @@ package com.pratham;
 
 import com.pratham.audioutils.AudioExporter;
 import com.pratham.audioutils.MicrophoneRecorder;
-import com.pratham.shazam.Peak;
+import com.pratham.shazam.models.Peak;
 import com.pratham.shazam.PeakExtractor;
 import com.pratham.shazam.Spectrogram;
 

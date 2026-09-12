@@ -1,4 +1,4 @@
-package com.pratham.shazam;
+package com.pratham.shazam.models;
 
 //Helper class to store high magnitude frequencies and the time they occur.
 public class Peak {

@@ -1,4 +1,4 @@
-package com.pratham.shazam;
+package com.pratham.shazam.models;
 
 public class Complex {
     private final double real;

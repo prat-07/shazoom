@@ -1,5 +1,7 @@
 package com.pratham.shazam;
 
+import com.pratham.shazam.models.Peak;
+
 import java.util.ArrayList;
 import java.util.List;
 

@@ -1,5 +1,7 @@
 package com.pratham.shazam;
 
+import com.pratham.shazam.models.Complex;
+
 public class FFT {
     public static Complex[] fft(double[] input){
         //convert double input array to complex

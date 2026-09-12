@@ -1,6 +1,6 @@
 package com.pratham;
 
-import com.pratham.shazam.Peak;
+import com.pratham.shazam.models.Peak;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
