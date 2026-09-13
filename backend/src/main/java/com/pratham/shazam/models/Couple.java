@@ -17,4 +17,12 @@ public class Couple {
     public long getAnchorTimeMs() {
         return anchorTimeMs;
     }
+
+    @Override
+    public String toString() {
+        return "Couple{" +
+                "songId=" + songId +
+                ", anchorTimeMs=" + anchorTimeMs +
+                '}';
+    }
 }

@@ -1,9 +1,15 @@
 package com.pratham.shazam;
 
+import com.pratham.audioutils.AudioConverter;
 import com.pratham.shazam.models.Couple;
 import com.pratham.shazam.models.Peak;
 
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import java.io.File;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Fingerprint {
@@ -15,19 +21,19 @@ public class Fingerprint {
 
     /**Takes already generated peaks and convert them into hashes*/
     public static Map<Integer, Couple> generateFingerprint(
-            Peak[] peaks,
+            List<Peak> peaks,
             long songId
     ){
         Map<Integer, Couple> fingerprints = new HashMap<>();
 
-        for(int i=0; i<peaks.length; i++){
+        for(int i=0; i<peaks.size(); i++){
 
-            Peak anchor = peaks[i];
+            Peak anchor = peaks.get(i);
             for(int j=i+1;
-                j < peaks.length && j<=i+TARGET_ZONE_SIZE;
+                j < peaks.size() && j<=i+TARGET_ZONE_SIZE;
                 j++){
 
-                Peak target = peaks[j];
+                Peak target = peaks.get(j);
 
                 int address = createAddress(anchor, target);
                 long anchorTimeMs = (long)(anchor.getTime() * 1000);
@@ -46,9 +52,75 @@ public class Fingerprint {
             String songFilePath
     ) throws Exception{
 
-        //TODO: complete this function after creating WavUtils and FileHandlingUtils
-        //TODO: for converting audio files to .wav and processing them
-        return new HashMap<>();
+        List<Peak> peaks;
+        Map<Integer, Couple> fingerprints = new HashMap<>();
+
+        File audioFile = new File(songFilePath);
+
+        try(AudioInputStream audioStream =
+                    AudioSystem.getAudioInputStream(audioFile)){
+
+            AudioFormat originalFormat = audioStream.getFormat();
+            int channels = originalFormat.getChannels();
+            int sampleRate = (int) originalFormat.getSampleRate();
+
+
+            if(channels!=1 && channels!=2)
+                throw new IllegalArgumentException(
+                        "Only mono and stereo audio supported"
+                );
+
+            //Convert audio to exact PCM format expected by AudioConverter
+            AudioFormat pcmFormat = new AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    originalFormat.getSampleRate(),
+                    16,
+                    channels,
+                    channels*2,
+                    originalFormat.getSampleRate(),
+                    false
+            );
+
+            AudioInputStream pcmStream;
+
+            if(AudioSystem.isConversionSupported(
+                    pcmFormat,
+                    originalFormat
+            ))
+                pcmStream =
+                        AudioSystem.getAudioInputStream(
+                                pcmFormat,
+                                audioStream
+                        );
+            else
+              throw new IllegalArgumentException(
+                      "Audio format cannot be converted to 16-bit PCM"
+              );
+
+            try(pcmStream){
+                long frameLength = pcmStream.getFrameLength();
+                double duration = (double)frameLength / sampleRate;
+                byte[] audioBytes = pcmStream.readAllBytes();
+
+                double[] monoSamples =
+                        AudioConverter.pcmToMonoSamples(
+                                audioBytes,
+                                channels
+                        );
+
+                List<double[]> spectrogram =
+                        Spectrogram.spectrogram(
+                                monoSamples,
+                                sampleRate
+                );
+                peaks = PeakExtractor.extractPeaks(
+                        spectrogram,
+                        duration,
+                        sampleRate
+                );
+            }
+        }
+        return generateFingerprint(peaks, songId);
     }
 
 
@@ -60,11 +132,13 @@ public class Fingerprint {
         int deltaMsRaw = (int)((target.getTime() - anchor.getTime()) * 1000);
 
         //Create Masks
-        int anchorFreqBits = anchorFreqBin & (1 << (MAX_FREQ_BITS) - 1);
-        int targetFreqBits = targetFreqBin & (1 << (MAX_FREQ_BITS) - 1);
-        int deltaTimeBits = deltaMsRaw & (1 << (MAX_DELTA_BITS) - 1);
+        int anchorFreqBits = anchorFreqBin & ((1 << (MAX_FREQ_BITS))  - 1);
+        int targetFreqBits = targetFreqBin & ((1 << (MAX_FREQ_BITS))  - 1);
+        int deltaTimeBits  = deltaMsRaw    & ((1 << (MAX_DELTA_BITS)) - 1);
 
         // Combine into 32-bit address
         return (anchorFreqBits << 23) | (targetFreqBits << 14) | deltaTimeBits;
     }
+
+
 }

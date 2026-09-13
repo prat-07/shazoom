@@ -10,18 +10,14 @@ public class AudioExporter {
             throws IOException {
 
         File file = new File(filename);
-
         File parent = file.getParentFile();
-
-        if (parent != null) {
+        if (parent != null)
             parent.mkdirs();
-        }
 
         try (FileWriter writer = new FileWriter(file)) {
-
-            for (short sample : audioData) {
+            for (short sample : audioData)
                 writer.write(sample + "\n");
-            }
         }
+
     }
 }

@@ -15,19 +15,14 @@ public class AudioConverter {
             );
         }
 
-        short[] samples =
-                new short[bytes.length / 2];
+        short[] samples = new short[bytes.length / 2];
 
         for (int i = 0; i < samples.length; i++) {
 
-            int low =
-                    bytes[2 * i] & 0xFF;
+            int low = bytes[2 * i] & 0xFF;
+            int high = bytes[2 * i + 1];
 
-            int high =
-                    bytes[2 * i + 1];
-
-            samples[i] =
-                    (short) ((high << 8) | low);
+            samples[i] = (short) ((high << 8) | low);
         }
 
         return samples;
@@ -39,13 +34,10 @@ public class AudioConverter {
      */
     public static double[] normalize(short[] samples) {
 
-        double[] normalized =
-                new double[samples.length];
+        double[] normalized = new double[samples.length];
 
-        for (int i = 0; i < samples.length; i++) {
-            normalized[i] =
-                    samples[i] / 32768.0;
-        }
+        for (int i = 0; i < samples.length; i++)
+            normalized[i] = samples[i] / 32768.0;
 
         return normalized;
     }
@@ -67,8 +59,7 @@ public class AudioConverter {
             int channels
     ) {
 
-        short[] samples =
-                convertToSamples(audioBytes);
+        short[] samples = convertToSamples(audioBytes);
 
         if (channels == 1) {
             return normalize(samples);
@@ -80,29 +71,18 @@ public class AudioConverter {
             );
         }
 
-        int frameCount =
-                samples.length / 2;
-
-        double[] mono =
-                new double[frameCount];
+        int frameCount = samples.length / 2;
+        double[] mono = new double[frameCount];
 
         for (int i = 0; i < frameCount; i++) {
 
-            short left =
-                    samples[2 * i];
+            short left = samples[2 * i];
+            short right = samples[2 * i + 1];
 
-            short right =
-                    samples[2 * i + 1];
+            double leftNormalized = left / 32768.0;
+            double rightNormalized = right / 32768.0;
 
-            double leftNormalized =
-                    left / 32768.0;
-
-            double rightNormalized =
-                    right / 32768.0;
-
-            mono[i] =
-                    (leftNormalized + rightNormalized)
-                            / 2.0;
+            mono[i] = (leftNormalized + rightNormalized) / 2.0;
         }
 
         return mono;

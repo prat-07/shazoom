@@ -26,7 +26,6 @@ public class MicrophoneRecorder {
     public short[] record(int durationSeconds) throws LineUnavailableException {
 
         DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
-
         TargetDataLine line = (TargetDataLine) AudioSystem.getLine(info);
 
         line.open(format);
@@ -34,25 +33,15 @@ public class MicrophoneRecorder {
 
         // 4096 bytes = 2048 samples for 16-bit mono audio
         byte[] buffer = new byte[4096];
-
         ByteArrayOutputStream audioBytes = new ByteArrayOutputStream();
-
         long endTime = System.currentTimeMillis() + durationSeconds * 1000L;
-
         System.out.println("Recording...");
 
         try {
             while (System.currentTimeMillis() < endTime) {
-
-                int count = line.read(
-                        buffer,
-                        0,
-                        buffer.length
-                );
-
-                if (count > 0) {
+                int count = line.read( buffer, 0, buffer.length );
+                if (count > 0)
                     audioBytes.write(buffer, 0, count);
-                }
             }
         } finally {
             line.stop();
@@ -60,7 +49,6 @@ public class MicrophoneRecorder {
         }
 
         System.out.println("Recording finished.");
-
         return AudioConverter.convertToSamples(audioBytes.toByteArray());
     }
 }
