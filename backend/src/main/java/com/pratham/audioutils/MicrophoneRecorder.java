@@ -61,22 +61,6 @@ public class MicrophoneRecorder {
 
         System.out.println("Recording finished.");
 
-        return convertToSamples(audioBytes.toByteArray());
-    }
-
-    private short[] convertToSamples(byte[] bytes) {
-
-        // 2 bytes = 1 sample because audio is 16-bit
-        short[] samples = new short[bytes.length / 2];
-
-        for (int i = 0; i < samples.length; i++) {
-
-            int low = bytes[2 * i] & 0xFF;
-            int high = bytes[2 * i + 1];
-
-            samples[i] = (short) ((high << 8) | low);
-        }
-
-        return samples;
+        return AudioConverter.convertToSamples(audioBytes.toByteArray());
     }
 }
