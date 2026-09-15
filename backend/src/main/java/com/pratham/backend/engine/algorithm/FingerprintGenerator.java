@@ -8,6 +8,7 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import java.io.File;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,16 +50,13 @@ public class FingerprintGenerator {
     /**Generate fingerprint for a complete audio from scratch*/
     public static Map<Integer, Couple> generateFingerprintForAudio(
             long songId,
-            String songFilePath
+            InputStream audioInputStream
     ) throws Exception{
 
         List<Peak> peaks;
-        Map<Integer, Couple> fingerprints = new HashMap<>();
-
-        File audioFile = new File(songFilePath);
 
         try(AudioInputStream audioStream =
-                    AudioSystem.getAudioInputStream(audioFile)){
+                    AudioSystem.getAudioInputStream(audioInputStream)){
 
             AudioFormat originalFormat = audioStream.getFormat();
             int channels = originalFormat.getChannels();
