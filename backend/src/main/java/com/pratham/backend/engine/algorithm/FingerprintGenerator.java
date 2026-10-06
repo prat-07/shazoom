@@ -4,10 +4,6 @@ import com.pratham.backend.engine.audio.AudioConverter;
 import com.pratham.backend.engine.model.Couple;
 import com.pratham.backend.engine.model.Peak;
 
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import java.io.File;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
@@ -19,124 +15,173 @@ public class FingerprintGenerator {
     private static final int MAX_FREQ_BITS = 9;
     private static final int MAX_DELTA_BITS = 14;
 
-
-    /**Takes already generated peaks and convert them into hashes*/
+    /**
+     * Takes generated peaks and converts them into hashes.
+     */
     public static Map<Integer, Couple> generateFingerprint(
             List<Peak> peaks,
             long songId
-    ){
-        Map<Integer, Couple> fingerprints = new HashMap<>();
+    ) {
 
-        for(int i=0; i<peaks.size(); i++){
+        Map<Integer, Couple> fingerprints =
+                new HashMap<>();
 
-            Peak anchor = peaks.get(i);
-            for(int j=i+1;
-                j < peaks.size() && j<=i+TARGET_ZONE_SIZE;
-                j++){
+        for (int i = 0; i < peaks.size(); i++) {
 
-                Peak target = peaks.get(j);
+            Peak anchor =
+                    peaks.get(i);
 
-                int address = createAddress(anchor, target);
-                long anchorTimeMs = (long)(anchor.getTime() * 1000);
+            for (
+                    int j = i + 1;
+                    j < peaks.size()
+                            && j <= i + TARGET_ZONE_SIZE;
+                    j++
+            ) {
 
-                fingerprints.put(address, new Couple(songId, anchorTimeMs));
+                Peak target =
+                        peaks.get(j);
+
+                int address =
+                        createAddress(anchor, target);
+
+                long anchorTimeMs =
+                        (long) (anchor.getTime() * 1000);
+
+                fingerprints.put(
+                        address,
+                        new Couple(
+                                songId,
+                                anchorTimeMs
+                        )
+                );
             }
         }
 
         return fingerprints;
     }
 
-
-    /**Generate fingerprint for a complete audio from scratch*/
+    /**
+     * Generates a fingerprint from an arbitrary audio file.
+     *
+     * Every input is first normalized to:
+     *
+     *      Mono
+     *      44,100 Hz
+     *      16-bit signed PCM
+     *
+     * This guarantees that both ingestion and recognition
+     * use exactly the same sample-rate basis.
+     */
     public static Map<Integer, Couple> generateFingerprintForAudio(
             long songId,
             InputStream audioInputStream
-    ) throws Exception{
+    ) throws Exception {
 
-        List<Peak> peaks;
-
-        try(AudioInputStream audioStream =
-                    AudioSystem.getAudioInputStream(audioInputStream)){
-
-            AudioFormat originalFormat = audioStream.getFormat();
-            int channels = originalFormat.getChannels();
-            int sampleRate = (int) originalFormat.getSampleRate();
-
-
-            if(channels!=1 && channels!=2)
-                throw new IllegalArgumentException(
-                        "Only mono and stereo audio supported"
+        /*
+         * BUG 1 FIX:
+         *
+         * Do NOT use Java Sound to process the original
+         * sample rate.
+         *
+         * ffmpeg converts every input to:
+         *
+         *      44100 Hz
+         *      mono
+         *      16-bit PCM
+         */
+        byte[] pcm =
+                AudioConverter.decodeToMono44k(
+                        audioInputStream
                 );
 
-            //Convert audio to exact PCM format expected by AudioConverter
-            AudioFormat pcmFormat = new AudioFormat(
-                    AudioFormat.Encoding.PCM_SIGNED,
-                    originalFormat.getSampleRate(),
-                    16,
-                    channels,
-                    channels*2,
-                    originalFormat.getSampleRate(),
-                    false
-            );
-
-            AudioInputStream pcmStream;
-
-            if(AudioSystem.isConversionSupported(
-                    pcmFormat,
-                    originalFormat
-            ))
-                pcmStream =
-                        AudioSystem.getAudioInputStream(
-                                pcmFormat,
-                                audioStream
-                        );
-            else
-              throw new IllegalArgumentException(
-                      "Audio format cannot be converted to 16-bit PCM"
-              );
-
-            try(pcmStream){
-                long frameLength = pcmStream.getFrameLength();
-                double duration = (double)frameLength / sampleRate;
-                byte[] audioBytes = pcmStream.readAllBytes();
-
-                double[] monoSamples =
-                        AudioConverter.pcmToMonoSamples(
-                                audioBytes,
-                                channels
-                        );
-
-                List<double[]> spectrogram =
-                        SpectrogramGenerator.spectrogram(
-                                monoSamples,
-                                sampleRate
+        double[] monoSamples =
+                AudioConverter.normalize(
+                        AudioConverter.convertToSamples(pcm)
                 );
-                peaks = PeakExtractor.extractPeaks(
+
+        if (monoSamples.length == 0) {
+            return new HashMap<>();
+        }
+
+        /*
+         * Duration is calculated from the actual number
+         * of decoded samples.
+         *
+         * This is more reliable than AudioInputStream
+         * getFrameLength(), especially for compressed
+         * formats and streamed input.
+         */
+        double duration =
+                monoSamples.length
+                        / (double) AudioConverter.SAMPLE_RATE;
+
+        /*
+         * From this point onwards the DSP pipeline receives
+         * exactly the same sample rate for every file.
+         */
+        List<double[]> spectrogram =
+                SpectrogramGenerator.spectrogram(
+                        monoSamples,
+                        AudioConverter.SAMPLE_RATE
+                );
+
+        List<Peak> peaks =
+                PeakExtractor.extractPeaks(
                         spectrogram,
                         duration,
-                        sampleRate
+                        AudioConverter.SAMPLE_RATE
                 );
-            }
-        }
-        return generateFingerprint(peaks, songId);
+
+        return generateFingerprint(
+                peaks,
+                songId
+        );
     }
 
+    /**
+     * Creates the 32-bit fingerprint address.
+     *
+     * Layout:
+     *
+     * 9 bits  -> anchor frequency
+     * 9 bits  -> target frequency
+     * 14 bits -> time delta
+     */
+    private static int createAddress(
+            Peak anchor,
+            Peak target
+    ) {
 
-    private static int createAddress(Peak anchor, Peak target){
+        int anchorFreqBin =
+                (int) (
+                        anchor.getFrequency() / 10
+                );
 
-        int anchorFreqBin = (int)(anchor.getFrequency() / 10);
-        int targetFreqBin = (int)(target.getFrequency() / 10);
+        int targetFreqBin =
+                (int) (
+                        target.getFrequency() / 10
+                );
 
-        int deltaMsRaw = (int)((target.getTime() - anchor.getTime()) * 1000);
+        int deltaMsRaw =
+                (int) (
+                        (target.getTime()
+                                - anchor.getTime()) * 1000
+                );
 
-        //Create Masks
-        int anchorFreqBits = anchorFreqBin & ((1 << (MAX_FREQ_BITS))  - 1);
-        int targetFreqBits = targetFreqBin & ((1 << (MAX_FREQ_BITS))  - 1);
-        int deltaTimeBits  = deltaMsRaw    & ((1 << (MAX_DELTA_BITS)) - 1);
+        int anchorFreqBits =
+                anchorFreqBin
+                        & ((1 << MAX_FREQ_BITS) - 1);
 
-        // Combine into 32-bit address
-        return (anchorFreqBits << 23) | (targetFreqBits << 14) | deltaTimeBits;
+        int targetFreqBits =
+                targetFreqBin
+                        & ((1 << MAX_FREQ_BITS) - 1);
+
+        int deltaTimeBits =
+                deltaMsRaw
+                        & ((1 << MAX_DELTA_BITS) - 1);
+
+        return (anchorFreqBits << 23)
+                | (targetFreqBits << 14)
+                | deltaTimeBits;
     }
-
-
 }

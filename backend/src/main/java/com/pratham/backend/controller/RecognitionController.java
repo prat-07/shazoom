@@ -25,6 +25,7 @@ public class RecognitionController {
 
         try {
             Optional<Song> match = recognitionService.recognize(file);
+            System.out.println(match.get());
 
             return match
                     .<ResponseEntity<?>>map(ResponseEntity::ok)
